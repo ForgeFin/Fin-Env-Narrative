@@ -7,7 +7,7 @@ This repository contains python code that was used for the experiments in the pa
 
 
 # Requirements
-## Installation of Anaconda
+## Installation of required packages
 
 1. Install [Anaconda](https://docs.anaconda.com/anaconda/install/)
 2. Create a virtual environment and install [TensorFlow](https://www.tensorflow.org/install/pip#tensorflow-2.0-rc-is-available) and [PyTorch](https://pytorch.org/get-started/locally/#start-locally).
