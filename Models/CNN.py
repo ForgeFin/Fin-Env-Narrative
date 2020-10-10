@@ -378,9 +378,9 @@ embedding_layer = Embedding(len(word_index) + 1,
 
 
 
-#######################################
-''' Model setup for financial label '''
-#######################################
+#####################################################
+''' Model setup for financial label (Direct Path) '''
+#####################################################
 
 # Setting y
 label = 'EPS_q'          ## << HERE 'EPS_q', 'BHAR_t'
@@ -725,9 +725,9 @@ print(">>      Copy in txt format!")
 
 
 
-################################################################################
-''' Model setup for environmental label considering Market Cap and Industry  '''
-################################################################################
+##########################################################################################
+''' Model setup for environmental label considering Market Cap and Industry (path env) '''
+##########################################################################################
 
 
 label = 'env_t'                   ## << HERE 'env_t','env_q'
@@ -1070,9 +1070,9 @@ print(">>      Copy in txt format!")
 
 
 
-##################################################################################
-''' Model setup for Environmental Performance + Text ->  Financial Performance '''
-##################################################################################
+#################################################################################################
+''' Model setup for Environmental Performance + Text ->  Financial Performance (Combined path)'''
+#################################################################################################
 
 label = 'EPS_q'          ## << HERE 'EPS_q', 'BHAR_t'
 y_train = y_train_eps    ## << HERE  y_train_eps, y_train_bhar
