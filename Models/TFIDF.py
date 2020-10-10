@@ -373,9 +373,9 @@ tp, fp, fn = [], [], []
 tp_val, fp_val, fn_val = [], [], []
 
 
-##################################
-''' setup for financial labels '''
-##################################
+################################################
+''' setup for financial labels (Direct Path) '''
+################################################
 
 sequence_input = Input(shape=(input_dim,), dtype='float32')
 preds = Dense(1, activation='sigmoid',name='output',
@@ -724,9 +724,9 @@ plt.close()
 
 
 
-###############################################################################
-''' model setup for environmental labels including Market Cap and Industry  '''
-###############################################################################
+#########################################################################################
+''' model setup for environmental labels including Market Cap and Industry (path env) '''
+#########################################################################################
 
 label = 'env_q'      ## << HERE 'env_t','env_q','EPS_q'
 y_train = y_train_ep90    ## << HERE  y_train_EP, y_train_ep90
@@ -1171,9 +1171,9 @@ print(">>      Copy in txt format!")
 
 
 
-##################################################################
-''' Environmental Performance + Text ->  Financial Performance '''
-##################################################################
+##################################################################################
+''' Environmental Performance + Text ->  Financial Performance (Combined Path) '''
+##################################################################################
 
 label = 'label_eps'      ## << HERE 'label_eps', 'BHAR_t'
 y_train = y_train_eps    ## << HERE  y_train_eps, y_train_bhar
