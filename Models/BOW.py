@@ -150,7 +150,7 @@ from sklearn.model_selection import train_test_split
 
 ## LOAD dataframe containing the label data for all documents
 ## format: filename (fname), labels (Env_q, Env_t, EPS_q, BHAR_t), market capitalization (Log_MarketCap), and industry identifier (osha_gov_SIC_numeric)
-data_all_rank = pd.read_csv(save_path+'/2020_15_07_all_samples_thirty_day_BHAR_wo_filtering_null_Bloomberg.txt', sep=',', index_col=0, encoding='utf-8')
+data_all_rank = pd.read_csv(save_path+'/dataframe.txt', sep=',', index_col=0, encoding='utf-8')
 
 random = 0 
 labelname = 'env_t'     # or 'env_q'
