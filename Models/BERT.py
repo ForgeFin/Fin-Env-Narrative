@@ -283,7 +283,7 @@ class final_generator(Sequence):
 ''' Define your directory containing all documents'''
 #############################################################################
 
-bertdocs = '.../Bert_Docs/' ## directory containing the txt-files 
+bertdocs = '.../Bert_Docs/' ## directory containing the npy-files (!)
 save_path = '.../save_results/' ## directory with datafile containin the label data and file IDs (i.e., filenames)
 
 saver = '.../train_test_val_split/' ## directory (if needed) to save unique train, val, test split
@@ -629,7 +629,6 @@ bootstrap_val.to_csv(savemodelpath+label+'_mkt_ind_bootstrap_val.txt',sep=',',en
 ########################
 
 #### PLOT USES F1_SC since this is the correct Fscore 
-#### (not the one calculated from batchwise nor tp,fp,fn)
 plt.plot(range(0,epoch+1), f1_sc, color='blue', marker='o', markersize=5)
 plt.plot(range(0,epoch+1), f1_sc_val, color='green', marker='s', markersize=5, linestyle ='--')
 plt.plot(0, f1_sc[0], color='red', marker='o', markersize=5)
@@ -1129,8 +1128,7 @@ bootstrap_val.to_csv(savemodelpath+label+'_mkt_ind_bootstrap_val.txt',sep=',',en
 ##################
 
 
-#### PLOT USES F1_SC since this is the correct Fscore 
-#### (not the one calculated from batchwise nor tp,fp,fn)
+#### PLOT USES F1_SC since this is the correct Fscore
 plt.plot(range(0,epoch+1), f1_sc, color='blue', marker='o', markersize=5)
 plt.plot(range(0,epoch+1), f1_sc_val, color='green', marker='s', markersize=5, linestyle ='--')
 plt.plot(0, f1_sc[0], color='red', marker='o', markersize=5)
@@ -1222,3 +1220,492 @@ print(">>      Copy in txt format!")
 
 
 
+
+###########################################################
+''' EnvPerformance + Text --> Financial (Combined Path) '''
+###########################################################
+
+# new genertor for new model, as data input differs
+class multi_input_generator_env(Sequence):
+    ''' 
+    Generates data for Keras
+    
+    list_IDs =  a list of npy. files to load
+    labels   =  a dictionary of labels {'filename1.npy':1,'filename1.npy':0,...etc}
+    filepath =  for example '.../testing_generator/'
+    '''
+    
+    def __init__(self, list_IDs, env, labels, filepath, batch_size=32, sentence_length=1000, features=768, ind_dim=8, shuffle=True, to_fit=True):
+        ''' initialization '''
+        self.list_IDs = list_IDs
+        self.env = env
+        self.labels = labels
+        self.batch_size = batch_size
+        self.sentence_length = sentence_length 
+        self.features = features
+        self.ind_dim = ind_dim
+        self.filepath = filepath
+        self.shuffle = shuffle
+        self.to_fit = to_fit
+        self.on_epoch_end()
+        
+    def __len__(self):
+        ''' Denotes the number of batches per epoch '''
+        
+        return int(np.floor(len(self.list_IDs) / self.batch_size))
+    
+    def __getitem__(self, index):
+        ''' 
+        Generate one batch of data
+        :param index: index of the batch; is created when called!
+        :return: X and y when fitting. X only when predicting
+        '''
+        # Generate indexes of the batch
+        indexes = self.indexes[index * self.batch_size:(index + 1) * self.batch_size]
+
+        # Find list of IDs
+        list_IDs_temp = [self.list_IDs[k] for k in indexes]
+
+        # Generate data
+        X, y = self._generate_data(list_IDs_temp)
+        
+
+        if self.to_fit:
+            return X, y
+        else:
+            return X
+
+    def on_epoch_end(self):
+        self.indexes = np.arange(len(self.list_IDs))
+        if self.shuffle == True:
+            np.random.shuffle(self.indexes) # suffles list IN PLACE! so does NOT create new list 
+            
+            
+    def _generate_data(self, list_IDs_temp):
+        '''
+        Generates data containing batch_size images
+        :param list_IDs_temp: list of label ids to load
+        :return: batch of images
+        
+        list_IDs_temp is created when __getitem__ is called
+        
+        '''
+        # Initialization
+        X = np.empty((self.batch_size, self.sentence_length, self.features))
+        y = np.empty((self.batch_size), dtype=int)
+        
+        environmental = np.empty((self.batch_size), dtype=int)
+        
+        for i, ID in enumerate(list_IDs_temp):
+            # i is a number;
+            # ID is the file-name
+               
+            # load single file
+            single_file = np.load(os.path.join(self.filepath,ID))
+            ## create empty array to contain batch of features and labels
+            batch_features = np.zeros((self.sentence_length, self.features))
+            
+            #####
+            # to allow for shorter than 1000-sentences
+            single_file = single_file[:self.sentence_length,:self.features]
+            
+            #####
+            
+            # pad loaded array to same length        
+            shape = np.shape(single_file)
+            batch_features[:shape[0],:shape[1]] = single_file 
+            
+            ## append to sequence
+            X[i,] = batch_features
+            
+            environmental[i] = self.env[ID]
+            
+            y[i] = self.labels[ID] ### this looks-up according rating (Note ID = file name.npy)
+            
+        return [X, environmental], y
+
+
+
+####################################
+''' set labels and hyperparameter'''
+####################################
+
+label = 'EPS_q'    ## << HERE 'EPS_q', 'BHAR_z'
+
+y_train = y_train_eps ## << HERE  y_train_eps, y_train_bhar
+y_test = y_test_eps   ## << HERE  y_test_eps, y_test_bhar
+y_val = y_val_eps     ## << HERE  y_val_eps, y_val_bhar
+
+gold_train = y_train_ep90 ## << HERE  y_train_EP, y_train_ep90, 
+gold_test = y_test_ep90   ## << HERE y_test_EP, y_test_ep90, 
+gold_val = y_val_ep90     ## << HERE y_val_EP, y_val_ep90
+
+
+label_ = label+'/'
+savemodelpath = os.path.join(savemodel,label_)
+
+epoch = 10
+batch = 32
+drop_cnn = 0.5
+regularization = 0.01  ## check if l1, l1_l2 or just l2 regularization!
+dense_size = 50
+drop_end = 0.5
+
+no_sentences_per_doc = 1000 #1000
+sentence_embedding = 768  # if just normal seq
+#X, y, y_price = feature_files_pd['np_name'].to_list(), feature_files_pd[labelname].to_list(), feature_files_pd[secondlabel].to_list()
+# Create a zip object from two lists
+
+print("For", label)
+print("Test size %s, Train size %s, Val size %s" % (len(y_test),len(y_train),len(y_val)))
+y_train, y_test, y_val = np.array(y_train, dtype='float32'), np.array(y_test, dtype='float32'), np.array(y_val, dtype='float32')
+
+X_train, X_test, X_val = np.array(x_train, dtype='str'), np.array(x_test, dtype='str'), np.array(x_val, dtype='str')
+
+y_label_train = dict(zip(X_train,y_train)) # labels is actual input for generator
+y_label_val = dict(zip(X_val,y_val)) # labels is actual input for generator
+y_label_test = dict(zip(X_test,y_test)) # labels is actual input for generator
+
+
+env_golden_train = dict(zip(X_train,gold_train)) # labels is actual input for generator
+env_golden_test = dict(zip(X_test,gold_test)) # labels is actual input for generator
+env_golden_val = dict(zip(X_val,gold_val)) # labels is actual input for generator
+
+
+
+def create_model(loadweight=None):
+    ##### MODEL #####
+    sequence_input  = Input(shape=(no_sentences_per_doc, sentence_embedding))
+
+    ### environmental performance
+    env_perf = Input(shape=(1,), dtype='float32')
+    
+    gru_layer = Bidirectional(GRU(50, #activation='tanh',
+                              return_sequences=True#True
+                              ))(sequence_input)
+    
+    sent_dense = Dense(100, activation='relu', name='sent_dense')(gru_layer)  # make signal stronger
+    
+    sent_att,sent_coeffs = AttentionLayer(100,return_coefficients=True,name='sent_attention')(sent_dense)
+    sent_att = Dropout(0.5,name='sent_dropout')(sent_att)
+
+    ## combine market cap and industry with cnn
+    combined = Concatenate()([sent_att, env_perf])
+
+
+    preds = Dense(1, activation='sigmoid',name='output')(combined)  # NOTE: SIGMOID FOR 2-CLASS PROBLEM; softmax for multiclass problem
+    model = Model([sequence_input,env_perf], preds)
+
+    if loadweight is not None:
+        model.load_weights(loadweight)
+
+    model.compile(loss='binary_crossentropy',
+                  optimizer='adam',
+                  metrics=[TruePositives(name='true_positives'),
+                          TrueNegatives(name='true_negatives'),
+                          FalseNegatives(name='false_negatives'),
+                          FalsePositives(name='false_positives'),
+                          #f1
+                          ])
+    return model
+
+
+##########################
+''' Calculate Baseline '''
+##########################
+
+unique, counts = np.unique(y_train,                 
+                           return_counts=True)
+baseline_trains = dict(zip(unique, counts))
+total = baseline_trains[1] + baseline_trains[0]
+total_precision_train = baseline_trains[1] / total
+f_baseline_train = 2*(total_precision_train)/(1+total_precision_train)
+print("Baseline_train:",baseline_trains)
+
+unique_val, counts_val = np.unique(y_val,
+                                   return_counts=True)
+baseline_vals = dict(zip(unique_val, counts_val))
+total_val = baseline_vals[1] + baseline_vals[0]
+total_precision_val = baseline_vals[1] / total_val
+f_baseline_val = 2*(total_precision_val)/(1+total_precision_val)
+print("Baseline_val:",baseline_vals)
+
+unique_test, counts_test = np.unique(y_test,
+                                     return_counts=True)
+baseline_test = dict(zip(unique_test, counts_test))
+total_test = baseline_test[1] + baseline_test[0]
+total_precision_test = baseline_test[1] / total_test
+f_baseline_test = 2*(total_precision_test)/(1+total_precision_test)
+print("Baseline_test:",baseline_test)
+
+
+#################
+''' run model '''
+#################
+
+accuracy, val_accuracy, manual_acc = [], [], []
+loss, val_loss = [], []
+fscores, f_m, f_m_val = [], [], []
+
+precision_sc, precision_sc_val = [], []
+recall_sc, recall_sc_val = [], []
+
+f1_sc, f1_sc_val = [], []
+
+tp, fp, fn = [], [], []
+tp_val, fp_val, fn_val = [], [], []
+
+# other variable that must be fed is a dictionary of labels
+training_generator = multi_input_generator_env(X_train, env_golden_train, y_label_train,
+                                               bertdocs, batch_size=batch, sentence_length=no_sentences_per_doc,
+                                               features=sentence_embedding, shuffle=False, to_fit=True)
+validation_generator = multi_input_generator_env(X_val, env_golden_val, y_label_val,
+                                                 bertdocs, batch_size=batch, sentence_length=no_sentences_per_doc,
+                                                 features=sentence_embedding, shuffle=False, to_fit=True)  # to_fit returns X and y
+
+model = create_model()
+
+# checkpoint
+filepath="weights-improvement-{epoch:02d}.hdf5"
+checkpoint = ModelCheckpoint(os.path.join(savemodelpath,filepath), verbose=1, save_best_only=False, save_weights_only=True, mode='auto')#, save_freq='epoch')
+callbacks_list = [checkpoint]
+
+history = model.fit_generator(generator=training_generator,
+                              validation_data=validation_generator, ## << HERE
+                              epochs=epoch,
+                              callbacks=callbacks_list
+                              )
+
+
+loss.append(history.history['loss'])
+val_loss.append(history.history['val_loss'])
+
+loss = np.array(loss).flatten()
+val_loss = np.array(val_loss).flatten()
+
+######################
+''' Reloade models '''
+######################
+
+model_loads = []
+for root, dirs, files in os.walk(savemodelpath):
+    for file in files:
+        if file.endswith(".hdf5"):  
+            model_loads.append(os.path.join(root,file))
+
+Fscore_val, Fscore_train = [], []
+
+fscorepredict_val, fscorepredict_train = [], []
+fscorepredict_val_custom, fscorepredict_val_sklearn = [], []
+
+recall_train, recall_val = [], []
+precision_train, precision_val = [], []
+
+training_generator_predict = multi_input_generator_env(X_train, env_golden_train, y_label_train,
+                                                       bertdocs, batch_size=batch, sentence_length=no_sentences_per_doc,
+                                                       features=sentence_embedding, shuffle=False, to_fit=False)  # to_fit returns X and y
+
+validation_generator_predict = multi_input_generator_env(X_val, env_golden_val, y_label_val,
+                                                         bertdocs, batch_size=batch, sentence_length=no_sentences_per_doc,
+                                                         features=sentence_embedding, shuffle=False, to_fit=False)  # to_fit returns X and y
+
+cnt = 0
+for i in model_loads:  
+    percent = cnt / epoch
+    print("Progress: ",percent)
+    ## recreating model
+    model = create_model(loadweight=i)
+
+    # for validation data
+    y_pred = model.predict_generator(validation_generator_predict, verbose=0)
+    val_preds = [1 if x > 0.5 else 0 for x in y_pred]
+    
+    ## see Careful-note
+    yy = len(val_preds)
+    cm, p, r = calc_metrics(val_preds, y_val[0:yy])#y_val)
+    precision_val.append(p)
+    recall_val.append(r)    
+    
+    fscorepredict_val_custom.append(cm)
+    
+    cm = f1_score(y_val[0:yy], val_preds)
+    #cm = f1_score(y_val, val_preds)
+    fscorepredict_val_sklearn.append(cm)
+
+    # for training data
+    y_pred =  model.predict_generator(training_generator_predict, verbose=0)  # gives probabilities
+    train_preds = [1 if x > 0.5 else 0 for x in y_pred]
+    
+    cm, p_tr, r_tr = calc_metrics(train_preds, y_train)
+    precision_train.append(p_tr)
+    recall_train.append(r_tr)
+    cm = f1_score(y_train, train_preds)
+    fscorepredict_train.append(cm)
+    cnt += 1
+
+
+# saving loss and fscore for plots
+diction = {'loss':loss,'val_loss':val_loss,'fscore':fscorepredict_train,'val_fscore':fscorepredict_val_custom}
+df = pd.DataFrame(diction, columns=['loss','val_loss','fscore','val_fscore'])
+df.to_csv(savemodelpath+label+'loss_fscore.txt', sep=',', encoding='utf-8')
+
+diction = {'pr_train':precision_train,'pr_val':precision_val,'rec_train':recall_train,'rec_val':recall_val}
+df2 = pd.DataFrame(diction, columns=['pr_train','pr_val','rec_train','rec_val'])
+df2.to_csv(savemodelpath+label+'recall_precision.txt', sep=',', encoding='utf-8')
+
+
+fscorepredict_train = np.array(fscorepredict_train)
+fscorepredict_val_custom = np.array(fscorepredict_val_custom)
+
+best_validation_model = np.argmax(fscorepredict_val_custom)
+
+best_trainings_fscore = fscorepredict_train[np.argsort(fscorepredict_train)[-1:]]
+best_validation_fscore = fscorepredict_val_custom[np.argsort(fscorepredict_val_custom)[-1:]]
+best_val_index = np.argmax(fscorepredict_val_custom)
+best_train_index = np.argmax(fscorepredict_train)
+
+f1_sc = np.insert(fscorepredict_train, 0, f_baseline_train, axis=0)
+f1_sc_val = np.insert(fscorepredict_val_custom, 0, f_baseline_val, axis=0)
+
+
+test_generator_predict = multi_input_generator_env(X_test, env_golden_test, y_label_test,
+                                                   bertdocs, batch_size=batch, sentence_length=no_sentences_per_doc,
+                                                   features=sentence_embedding, shuffle=False, to_fit=False)  # to_fit returns X and y
+
+
+# run best model (highest validation score)
+print("Reloading best validation model")
+loadpath_best = model_loads[best_validation_model]
+model = create_model(loadweight=loadpath_best)
+
+y_pred = model.predict_generator(test_generator_predict)
+
+test_preds = [1 if x > 0.5 else 0 for x in y_pred]
+yy = len(test_preds)
+
+f_test,pr_test, re_test = calc_metrics(test_preds, y_test[0:yy])
+
+bootstrap_test = TP_FP_FN_forBootstrap(test_preds,y_test[0:yy])
+bootstrap_test.to_csv(savemodelpath+label+'bootstrap_test.txt',sep=',',encoding='utf-8')
+
+# saving best train_preds and val_preds
+loadpath_best = model_loads[best_train_index]
+print("Reloading best training model")
+model = create_model(loadweight=loadpath_best)
+
+y_pred_train = model.predict_generator(training_generator_predict)
+train_preds = [1 if x > 0.5 else 0 for x in y_pred_train]
+f_train,pr_train, re_train = calc_metrics(train_preds, y_train)
+
+saved_train_preds = pd.DataFrame(train_preds)
+saved_train_preds.to_csv(savemodelpath+label+'saved_train_preds.txt',sep=',',encoding='utf-8')
+
+loadpath_best = model_loads[best_val_index]
+model = create_model(loadweight=loadpath_best)
+
+y_pred_val = model.predict_generator(validation_generator_predict)
+val_preds = [1 if x > 0.5 else 0 for x in y_pred_val]
+yy = len(val_preds)
+f_val,pr_val, re_val = calc_metrics(val_preds, y_val[0:yy])
+
+saved_val_preds = pd.DataFrame(val_preds)
+saved_val_preds.to_csv(savemodelpath+label+'_plus_env_saved_val_preds.txt',sep=',',encoding='utf-8')
+
+bootstrap_val = TP_FP_FN_forBootstrap(val_preds,y_val[0:yy])
+bootstrap_val.to_csv(savemodelpath+label+'_plus_env_bootstrap_val.txt',sep=',',encoding='utf-8')
+
+##################
+''' Get Output '''
+##################
+
+
+print("")
+print("Baseline train:", baseline_trains)
+print("Baseline test:", baseline_test)
+print("Baseline val:", baseline_vals)
+print("")
+print("Epochs:",epoch)
+print("Label:",label)
+print("Batch %s, Dropout of CNNs %s, Regularization %s, Dense Size %s, Drpout at Combined %s" % (batch,drop_cnn,regularization,dense_size,drop_end))
+
+print("")
+print("                         Precision, Recall,  Fscore,   tstat")
+print("overall_Baseline(train): %f, %f, %f" % (total_precision_train, 1,f_baseline_train))
+print("overall_Baseline(val):   %f, %f, %f" % (total_precision_val, 1,f_baseline_val))
+print("overall_Baseline(test):  %f, %f, %f" % (total_precision_test, 1,f_baseline_test))
+print("")
+print("")
+print("(train):                 %f, %f, %f" % (precision_train[best_train_index], recall_train[best_train_index],f1_sc[best_train_index+1]))
+print("(val):                   %f, %f, %f" % (precision_val[best_val_index],recall_val[best_val_index],f1_sc_val[best_val_index+1]))
+print("")
+print("(test):                  %f, %f, %f" % (pr_test,re_test,f_test))
+print("")
+print("")
+print("")
+print(">>      Copy in txt format!")
+
+
+
+#### PLOT USES F1_SC since this is the correct Fscore 
+plt.plot(range(0,epoch+1), f1_sc, color='blue', marker='o', markersize=5)
+plt.plot(range(0,epoch+1), f1_sc_val, color='green', marker='s', markersize=5, linestyle ='--')
+plt.plot(0, f1_sc[0], color='red', marker='o', markersize=5)
+plt.plot(0, f1_sc[0], color='red', marker='x', markersize=10)
+plt.annotate('Always guessing class 1', xy=(0, f1_sc[0]),xytext=(0.2,f1_sc[0]))
+plt.plot(best_train_index+1, f1_sc[best_train_index+1], color='orange', marker='o', markersize=6)
+plt.plot(best_val_index+1, f1_sc_val[best_val_index+1], color='orange', marker='o', markersize=6)
+plt.annotate('Always guessing class 1', xy=(0, f1_sc_val[0]), xytext=(0.2,f1_sc_val[0]))
+
+plt.plot(0, f1_sc[0], color='red', marker='o', markersize=5)
+plt.plot(0, f1_sc_val[0], color='red', marker='o', markersize=5)
+plt.title('model f1')
+plt.ylabel('f1')
+plt.xlabel('epoch')
+#plt.xticks(range(0, epoch+1))
+plt.xlim(-1, epoch+2)
+plt.legend(['train','validation'], loc='lower right')
+#plt.show()
+plt.savefig(savemodelpath+label+'_f1.png')
+plt.close()
+
+plt.plot(range(1,epoch+1), loss, color='blue', marker='o', markersize=5)
+plt.plot(range(1,epoch+1), val_loss, color='green', marker='s', markersize=5, linestyle ='--')
+plt.title('model loss')
+plt.ylabel('loss')
+plt.xlabel('epoch')
+#plt.xticks(range(0, epoch+1))
+plt.xlim(-1, epoch+2)
+plt.legend(['train','validation'], loc='upper right')
+#plt.show()
+plt.savefig(savemodelpath+label+'_loss.png')
+plt.close()
+
+
+plt.plot(range(1,epoch+1), precision_train, color='blue', marker='s', markersize=5)
+plt.plot(range(1,epoch+1), precision_val, color='green', marker='s', markersize=5, linestyle ='--')
+plt.plot(best_train_index+1, precision_train[best_train_index], color='orange', marker='o', markersize=5)
+plt.plot(best_val_index+1, precision_val[best_val_index], color='orange', marker='o', markersize=5)
+plt.title('Model')
+plt.ylabel('Precision')
+plt.xlabel('epoch')
+#plt.xticks(range(0, epoch+1))
+plt.xlim(-1, epoch+2)
+plt.legend(['train_precision','validation_precision'], loc='upper left')
+#plt.show()
+plt.savefig(savemodelpath+label+'_precision.png')
+plt.close()
+
+
+plt.plot(range(1,epoch+1), recall_train, color='blue', marker='o', markersize=5, linestyle =':')
+plt.plot(range(1,epoch+1), recall_val, color='green', marker='s', markersize=5, linestyle ='-')
+plt.plot(best_train_index+1, recall_train[best_train_index], color='orange', marker='o', markersize=5)
+plt.plot(best_val_index+1, recall_val[best_val_index], color='orange', marker='o', markersize=5)
+plt.title('Model')
+plt.ylabel('Recall')
+plt.xlabel('epoch')
+#plt.xticks(range(0, epoch+1))
+plt.xlim(-1, epoch+2)
+plt.legend(['train_recall','val_recall'], loc='upper left')
+#plt.show()
+plt.savefig(savemodelpath+label+'_recall.png')
+plt.close()
