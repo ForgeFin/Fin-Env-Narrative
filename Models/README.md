@@ -19,3 +19,5 @@ The code of each model (BOW, CNN, etc.) is structured as follows:
 3. Each code produces its own train, test, validation split and saves them to your storage-directory. This way you can ensure that you either create your a new train-test-val-split or that you always create and reload the same, unique train-test-val-split.
 4. Next, the models setup is created, which saves each model after every epoch. To make sure each label is saved in its own folder, create sub-folders in your storage-directory named exactly like the labels (env_q, env_t, EPS_q, BHAR_t).
 5. Each code contains the *direct path*, path *env*, and the *combined path*. Make sure that you assigne the according label (marked in the code as ```## << HERE:```)
+
+**Please note:** For running the BERT classifier, you first need to run the embedding for BERT (BERT_sentence_embedding.py). This will convert each txt-file to a np-array (no.sentences x 768) containing the encoded CLS-tokens, i.e. the sentences of each document in a vector representation.
