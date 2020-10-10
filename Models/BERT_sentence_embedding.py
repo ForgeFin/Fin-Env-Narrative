@@ -1,3 +1,18 @@
+#######################################################################################################################
+''' 
+This code requires a GPU. 
+For example, you could use Google Colab and integrate a GPU (see https://colab.research.google.com/notebooks/gpu.ipynb )
+
+Code works as follows:
+1. Load texts with one sentence per line (lower case words)
+2. For each text, use first 200 tokens of each sentence and encode tokens to IDs
+3. Save ID-encoded files to a folder
+4. Reload each file and do a feed-forward pass to BERT
+5. Retrieve vector representation of CLS-tokens for each sentence from BERT and save each document to np.array
+'''
+#######################################################################################################################
+
+
 import pandas as pd
 import os
 import time
@@ -42,7 +57,8 @@ else:
 
 directory = '.../dataframe_folder/'
 documents = '.../documents_as_txt/'  # specify directory and adjust x = re.findall(r'documents_as_txt/(.*)',file) in ''' conversion to numpy ''' to according folder name
-save_drive = '.../Bert_docs_after_tokenizing/' # specify where encoded txt-files should be saved
+save_drive = '.../Bert_docs_after_tokenizing/' # specify where ID encoded txt-files should be saved
+path = '.../numpy_arrays/' # specify where numpy arrays should be saved
 
 data_sus_rank = pd.read_csv(directory+'dataframe.txt', sep=',', index_col=0, encoding='utf-8')
 
@@ -77,7 +93,11 @@ file_no = 1
 length_files = []
 length_of_seq = 1000  # sentence number that will be used of file
 print("Sentence length used:", length_of_seq)
-max_numword_per_sentence = 200 ## due to limit of Berts sequence processing (a sequence cannot be longer than 512)
+
+max_numword_per_sentence = 200  ## due to limit of Berts sequence processing (a sequence cannot be longer than 512)
+                                ## Note that even if you limit the number of words to 200, the BERT tokenizer could
+                                ## split a word into several tokens, e.g. "playing", will be split into "play" and "##ing"
+
 
 for file in to_tokenize:
     longst = []
@@ -135,3 +155,97 @@ print("Each file is now encoded -- each token is converted to an ID and for sent
 
 end_time = time.time() - start_time 
 print("--- %s minutes ---" % (((time.time() - start_time))/60))
+
+
+######################################################################################################
+''' do a feed-forward pass of each encoded file and save CLS-vector representation as numpy array  '''
+######################################################################################################
+
+print("load file list of encoded files")
+bert_test_files=[]
+for ff in os.listdir(save_drive):
+    if ff.endswith(".txt"):
+        bert_test_files.append(os.path.join(save_drive,ff))
+
+## Model
+## Careful, needs about 880 min for 8772 files!!!
+cutter = 100 # cutter creates chunks, cause otherwise to hard to process a 1000 sentence-file 
+
+start_time = time.time()
+
+cnt = 1
+for i in bert_test_files:
+    longst = []
+
+    x = re.findall(r'Bert_Docs_ID_1000sents_maxWord200_longstsent510/(.*)',i)  # für google colab umdrehen 'Bert_Docs_tokenized_encoded/'
+    x = re.findall(r'.*[^.txt]',x[0])
+    name = x[0]
+
+    with open(i, encoding='utf-8') as f:
+        length_file = len(f.readlines()) # whatsoever closes file; length of sentence
+        print("     length of file %s" % length_file)
+    with open(i, encoding='utf-8') as est:
+        if length_file < cutter:
+            ll = [] ## used for appending sentences of each document
+            for line in est:
+                seperated = [int(i) for i in line.split(',')] # line is "string,string" etc. splitted at "," and converted to number
+                seperated = seperated + [0] * (longest_sentence - len(seperated))
+                ll.append(seperated)
+            bert_line = pd.DataFrame(ll)
+            padded = np.array(bert_line)
+            attention_mask = np.where(padded != 0, 1, 0)
+
+            # each padded document is converted into a tensor
+            input_ids = torch.tensor(padded)
+            input_ids_gpu = input_ids.to(device) 
+            attention_mask = torch.tensor(attention_mask)
+            attention_mask_gpu = attention_mask.to(device)
+                
+            ### Runing each document separatly through BERT works ONLY if BERT is not fine-tuned!!!
+            with torch.no_grad():
+                last_hidden_states = model(input_ids_gpu.long(), attention_mask=attention_mask_gpu.long())
+            features = last_hidden_states[0][:,0,:].cpu().numpy()
+        
+        else:
+            longst.extend(est.readline() for i in range(length_file))
+            chunks = [longst[x:x+100] for x in range(0, len(longst), 100)]
+            start = 0
+            print("      Doc splitted into %s subchunks" % len(chunks))
+            for element in chunks:
+                ll = [] ## needs to be here, since otherwise every chunk is appended seperately
+                for line in element:
+                    seperated = [int(i) for i in line.split(',')] # line is "string,string" etc. splitted at "," and converted to number
+                    seperated = seperated + [0] * (longest_sentence - len(seperated))
+                    ll.append(seperated)
+                bert_line = pd.DataFrame(ll)
+                padded = np.array(bert_line)
+                attention_mask = np.where(padded != 0, 1, 0)
+
+                # each padded document is converted into a tensor
+                input_ids = torch.tensor(padded)
+                input_ids_gpu = input_ids.to(device) 
+                attention_mask = torch.tensor(attention_mask)
+                attention_mask_gpu = attention_mask.to(device)
+                
+                if start == 0:
+                    ### Runing each chunk separatly through BERT works ONLY if BERT is not fine-tuned!!!
+                    with torch.no_grad():
+                        last_hidden_states = model(input_ids_gpu.long(), attention_mask=attention_mask_gpu.long())
+                    features = last_hidden_states[0][:,0,:].cpu().numpy()
+                    start +=1
+
+                else:
+                    with torch.no_grad():
+                        last_hidden_states = model(input_ids_gpu.long(), attention_mask=attention_mask_gpu.long())
+                    features_append = last_hidden_states[0][:,0,:].cpu().numpy()
+                    features = np.vstack((features,features_append))
+
+    np.save(path+name+'.npy',features) ## path needs to be defined, saves each features to npy format
+    cnt += 1
+
+    print("file no %s from total %s" % (cnt, len(bert_test_files)))
+    #print("from total %s " % len(bert_test_files))
+
+end_time = time.time() - start_time 
+print("--- %s minutes ---" % (((time.time() - start_time))/60))
+
