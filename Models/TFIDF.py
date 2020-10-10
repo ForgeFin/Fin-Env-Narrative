@@ -300,16 +300,16 @@ x_test = np.array(x_test.toarray(), dtype='float32')
 x_val = np.array(x_val.toarray(), dtype='float32')
 
 
-##################
-''' Set y label'''
-##################
+#################################
+''' Set y label (Direct Path) '''
+#################################
 
 ## Note: If you want to run model for another label specify here
 
-label = 'EPS_q'      ## << HERE 'env_t','env_q','EPS_q', 'BHAR_t'
-y_train = y_train_eps    ## << HERE  y_train_EP, y_train_ep90, y_train_eps, y_train_bhar
-y_test = y_test_eps      ## << HERE  y_test_EP, y_test_ep90, y_test_eps, y_test_bhar
-y_val = y_val_eps        ## << HERE  y_val_EP, y_val_ep90, y_val_eps, y_val_bhar
+label = 'EPS_q'          ## << HERE 'EPS_q', 'BHAR_t'
+y_train = y_train_eps    ## << HERE  y_train_eps, y_train_bhar
+y_test = y_test_eps      ## << HERE  y_test_eps, y_test_bhar
+y_val = y_val_eps        ## << HERE  y_val_eps, y_val_bhar
 print(label)
 
 label_ = label+'/'
