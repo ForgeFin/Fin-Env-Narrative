@@ -1,5 +1,5 @@
 # Fin-Env-Narrative
-This repository contains python code that was used for the experiments in the paper "A Computational Analysis of Financial and Environmental Narratives within Financial Reports and its Value for Investors"
+This repository contains python code that was used for the experiments in the paper "Felix Armbrust, Henry Schäfer, and Roman Klinger (2020). A computational analysis of financial and environmental narratives within financial reports and its value for investors. In Proceedings of the 1st Joint Workshop on Financial Narrative Processing and MultiLing Financial Summarisation (FNP-FNS 2020), Workshop at the 28th International Conference on Computational Linguistics. 2020"
 
 **Note**: This repository does not contain the underlying label data and documents. The pre-processed reports can be downloaded from [SRAF](https://sraf.nd.edu/data/stage-one-10-x-parse-data/). The unprocessed files can be downloaded via the [U.S. Securities and Exchange Commission](https://www.sec.gov/Archives/edgar/Feed/). The labels (financial and environmental data) can be taken from Bloomberg. Alternatively, the environmental data can also be taken directly from Sustainalytics.
 
