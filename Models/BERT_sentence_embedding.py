@@ -1,5 +1,9 @@
 #######################################################################################################################
 ''' 
+###########################################
+(Code-)Author: Felix Armbrust, 2020
+###########################################
+
 This code requires a GPU. 
 For example, you could use Google Colab and integrate a GPU (see https://colab.research.google.com/notebooks/gpu.ipynb )
 
