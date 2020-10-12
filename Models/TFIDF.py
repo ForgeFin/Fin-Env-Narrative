@@ -1,3 +1,7 @@
+###########################################
+''' (Code-)Author: Felix Armbrust, 2020 ''' 
+###########################################
+
 import os
 import pandas as pd
 import numpy as np
