@@ -20,15 +20,17 @@ Please refer to the according installation pages for the specific install comman
 
 ## Citation
 
-The preprint version can be cited as:
-
 ```
-@inproceedings{Armbrust2020,
-  author = {Felix Armbrust and Henry Sch\"afer and Roman Klinger},
-  title = {A Computational Analysis of Financial and Environmental Narratives within Financial Reports and its Value for Investors},
-  booktitle = {Proceedings of the 1st Joint Workshop on Financial Narrative Processing and MultiLing Financial Summarisation (FNP-FNS 2020)},
-  year = {2020},
-  pdf =
-{http://www.romanklinger.de/publications/ArmbrustSchaeferKlinger2020.pdf}
-}
+@inproceedings{armbrust-etal-2020-computational,
+    title = "A Computational Analysis of Financial and Environmental Narratives within Financial Reports and its Value for Investors",
+    author = {Armbrust, Felix  and
+      Sch{\"a}fer, Henry  and
+      Klinger, Roman},
+    booktitle = "Proceedings of the 1st Joint Workshop on Financial Narrative Processing and MultiLing Financial Summarisation",
+    month = dec,
+    year = "2020",
+    address = "Barcelona, Spain (Online)",
+    publisher = "COLING",
+    url = "https://www.aclweb.org/anthology/2020.fnp-1.31",
+    pages = "181--194"}
 ```
